@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini Gogle — Code vs. PageRank Comparison</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            gogleBlue: '#4285F4',
+            gogleRed: '#EA4335',
+            gogleYellow: '#FBBC05',
+            gogleGreen: '#34A853',
+          },
+          boxShadow: {
+            'search': '0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04)',
+            'search-dark': '0 4px 24px -2px rgba(0, 0, 0, 0.45)',
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Custom subtle animations & scrollbar styling */
+    @keyframes floatPulse {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-3px); }
+    }
+    .logo-letter {
+      display: inline-block;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .logo-letter:hover {
+      transform: translateY(-4px) scale(1.08);
+    }
+    .node-circle {
+      transition: r 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), fill 0.3s ease, stroke-width 0.2s ease;
+    }
+    .edge-line {
+      transition: stroke 0.25s ease, stroke-width 0.25s ease, opacity 0.25s ease;
+    }
+    .card-transition {
+      transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    input[type="range"] {
+      accent-color: #4285F4;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen transition-colors duration-300 antialiased selection:bg-blue-500/20 selection:text-blue-600">
+
+  <!-- Toast Notification Container (Replaces alert()) -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/80 dark:border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="#" class="text-xl sm:text-2xl font-extrabold tracking-tight select-none flex items-center">
+          <span class="text-gogleBlue logo-letter">M</span>
+          <span class="text-gogleRed logo-letter">i</span>
+          <span class="text-gogleYellow logo-letter">n</span>
+          <span class="text-gogleBlue logo-letter">i</span>
+          <span class="mx-1"></span>
+          <span class="text-gogleBlue logo-letter">G</span>
+          <span class="text-gogleRed logo-letter">o</span>
+          <span class="text-gogleYellow logo-letter">g</span>
+          <span class="text-gogleBlue logo-letter">l</span>
+          <span class="text-gogleGreen logo-letter">e</span>
+        </a>
+        <span class="hidden md:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60">
+          Search Engine Lab v2.6
+        </span>
+      </div>
+
+      <nav class="flex items-center gap-2 sm:gap-4">
+        <a href="#live-search" class="hidden sm:inline-block text-sm font-medium text-slate-600 hover:text-gogleBlue dark:text-slate-300 dark:hover:text-blue-400 transition">Live Ranker</a>
+        <a href="#graph-lab" class="hidden sm:inline-block text-sm font-medium text-slate-600 hover:text-gogleBlue dark:text-slate-300 dark:hover:text-blue-400 transition">Graph Simulator</a>
+        <a href="#comparison-matrix" class="hidden sm:inline-block text-sm font-medium text-slate-600 hover:text-gogleBlue dark:text-slate-300 dark:hover:text-blue-400 transition">Code vs PageRank</a>
+        <button id="theme-toggle" aria-label="Toggle Dark Mode" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition">
+          <!-- Sun Icon -->
+          <svg id="icon-sun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+          <!-- Moon Icon -->
+          <svg id="icon-moon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-16">
+
+    <!-- 1. HERO & INTERACTIVE SEARCH BAR -->
+    <section id="live-search" class="text-center max-w-4xl mx-auto space-y-6">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300">
+        <span class="w-2 h-2 rounded-full bg-gogleGreen animate-pulse"></span>
+        Interactive Search Ranking &amp; Graph Authority Sandbox
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight select-none">
+        <span class="text-gogleBlue logo-letter">M</span><span class="text-gogleRed logo-letter">i</span><span class="text-gogleYellow logo-letter">n</span><span class="text-gogleBlue logo-letter">i</span>
+        <span> </span>
+        <span class="text-gogleBlue logo-letter">G</span><span class="text-gogleRed logo-letter">o</span><span class="text-gogleYellow logo-letter">g</span><span class="text-gogleBlue logo-letter">l</span><span class="text-gogleGreen logo-letter">e</span>
+      </h1>
+      <p class="text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+        Discover how search engines rank the web. Compare <strong class="text-slate-900 dark:text-white font-semibold">Code &amp; Keyword Relevance (TF-IDF)</strong> against <strong class="text-slate-900 dark:text-white font-semibold">PageRank Link Authority</strong> in real time.
+      </p>
+
+      <!-- Search Box -->
+      <div class="relative max-w-2xl mx-auto">
+        <div class="flex items-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700/80 shadow-search dark:shadow-search-dark focus-within:ring-2 focus-within:ring-gogleBlue/50 focus-within:border-gogleBlue transition px-4 py-3 gap-3">
+          <svg class="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+          <input
+            id="search-input"
+            type="text"
+            value="algorithm"
+            placeholder="Search indexed pages (e.g., algorithm, web graph, search engine, data structures)..."
+            class="w-full bg-transparent text-base sm:text-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+          />
+          <button id="clear-search" title="Clear query" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Sample Query Chips + Action Buttons -->
+        <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <span class="text-xs font-medium text-slate-500 dark:text-slate-400 mr-1">Try queries:</span>
+          <button class="sample-query px-3 py-1.5 rounded-xl text-xs font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-gogleBlue dark:hover:border-gogleBlue text-slate-700 dark:text-slate-300 transition shadow-sm" data-query="algorithm">algorithm</button>
+          <button class="sample-query px-3 py-1.5 rounded-xl text-xs font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-gogleBlue dark:hover:border-gogleBlue text-slate-700 dark:text-slate-300 transition shadow-sm" data-query="web graph">web graph</button>
+          <button class="sample-query px-3 py-1.5 rounded-xl text-xs font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-gogleBlue dark:hover:border-gogleBlue text-slate-700 dark:text-slate-300 transition shadow-sm" data-query="search engine">search engine</button>
+          <button class="sample-query px-3 py-1.5 rounded-xl text-xs font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-gogleBlue dark:hover:border-gogleBlue text-slate-700 dark:text-slate-300 transition shadow-sm" data-query="data structures">data structures</button>
+        </div>
+
+        <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <button id="btn-search" class="px-5 py-2.5 rounded-xl bg-gogleBlue hover:bg-blue-600 text-white font-semibold text-sm shadow-sm hover:shadow transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            Mini Gogle Search
+          </button>
+          <button id="btn-lucky" class="px-5 py-2.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-sm shadow-sm transition flex items-center gap-2">
+            <svg class="w-4 h-4 text-gogleYellow" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4h7.6l-6.2 4.5 2.4 7.4-6.2-4.5-6.2 4.5 2.4-7.4-6.2-4.5h7.6z"/></svg>
+            Feeling Lucky / Simulate Crawl
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. HYBRID RANKING SLIDER & SIDE-BY-SIDE LIVE RESULTS -->
+    <section class="space-y-6">
+      <!-- Hybrid Control Bar -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-bold text-slate-900 dark:text-white">Hybrid Ranking Blend Controller</h2>
+              <span class="px-2 py-0.5 text-xs font-semibold rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">Live</span>
+            </div>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Slide to adjust how the <strong>Hybrid Ranker</strong> balances on-page keyword relevance against off-page PageRank authority.
+            </p>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-slate-50 dark:bg-slate-950/60 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800">
+            <div class="flex items-center justify-between sm:justify-start gap-2 text-xs font-semibold">
+              <span class="text-gogleBlue">Code / TF-IDF: <span id="weight-code-label">50%</span></span>
+            </div>
+            <input id="hybrid-slider" type="range" min="0" max="100" value="50" class="w-full sm:w-48 cursor-pointer" />
+            <div class="flex items-center justify-between sm:justify-start gap-2 text-xs font-semibold">
+              <span class="text-gogleGreen">PageRank: <span id="weight-pr-label">50%</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Three-Column Ranking Comparison: Pure Code | Hybrid Blend | Pure PageRank -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Column 1: Pure Code / Text Relevance -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+          <div class="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-blue-50/60 dark:bg-blue-950/20 flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-gogleBlue"></span>
+                <h3 class="font-bold text-slate-900 dark:text-white text-base">1. Code / TF-IDF Ranking</h3>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pure lexical &amp; keyword frequency score</p>
+            </div>
+            <span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">On-Page</span>
+          </div>
+          <div id="results-code" class="p-4 space-y-3 flex-1"></div>
+        </div>
+
+        <!-- Column 2: Hybrid Combined Ranking -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border-2 border-gogleBlue/40 dark:border-gogleBlue/50 shadow-md overflow-hidden flex flex-col">
+          <div class="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-blue-50/70 via-amber-50/50 to-emerald-50/70 dark:from-blue-950/30 dark:via-slate-900 dark:to-emerald-950/30 flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-gogleYellow"></span>
+                <h3 class="font-bold text-slate-900 dark:text-white text-base">2. Hybrid Combined Rank</h3>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Weighted blend (<span id="subtitle-blend">50% Code + 50% PR</span>)</p>
+            </div>
+            <span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">Hybrid</span>
+          </div>
+          <div id="results-hybrid" class="p-4 space-y-3 flex-1"></div>
+        </div>
+
+        <!-- Column 3: Pure PageRank Authority -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+          <div class="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-emerald-50/60 dark:bg-emerald-950/20 flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-gogleGreen"></span>
+                <h3 class="font-bold text-slate-900 dark:text-white text-base">3. PageRank Authority</h3>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pure incoming link graph importance</p>
+            </div>
+            <span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">Off-Page</span>
+          </div>
+          <div id="results-pagerank" class="p-4 space-y-3 flex-1"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. INTERACTIVE WEB GRAPH & LIVE PAGERANK SIMULATOR -->
+    <section id="graph-lab" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div class="p-6 sm:p-8 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gogleBlue mb-1">
+            <span>Interactive Topology Lab</span>
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">Live Web Graph &amp; PageRank Simulator</h2>
+          <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
+            Click a <strong>Source Node</strong> and then a <strong>Target Node</strong> on the canvas to add or remove a directed hyperlink. Watch how authority flows from hubs to cited pages!
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
+            <label for="damping-input" class="text-xs font-semibold text-slate-600 dark:text-slate-300">Damping (d):</label>
+            <input id="damping-input" type="number" step="0.05" min="0.1" max="0.99" value="0.85" class="w-16 bg-white dark:bg-slate-900 text-xs font-mono font-bold text-center rounded-lg py-1 border border-slate-300 dark:border-slate-600 focus:outline-none focus:border-gogleBlue" />
+          </div>
+
+          <button id="btn-step-pr" class="px-4 py-2.5 rounded-xl bg-gogleGreen hover:bg-emerald-600 text-white text-xs sm:text-sm font-semibold shadow-sm transition flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            Run PageRank Iteration
+          </button>
+
+          <button id="btn-reset-graph" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold transition">
+            Reset Graph
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12">
+        <!-- Interactive SVG Network Canvas -->
+        <div class="lg:col-span-7 p-4 sm:p-6 bg-slate-50/70 dark:bg-slate-950/60 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 flex flex-col">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3 text-xs">
+            <span id="graph-selection-hint" class="font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
+              Tip: Click any node to start creating/toggling a link.
+            </span>
+            <span class="font-mono text-slate-500 dark:text-slate-400">
+              Iteration: <strong id="iteration-count" class="text-slate-900 dark:text-white">20</strong> (Converged)
+            </span>
+          </div>
+
+          <div class="relative w-full aspect-[16/11] bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-inner">
+            <svg id="web-graph-svg" viewBox="0 0 700 460" class="w-full h-full select-none cursor-pointer">
+              <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="26" refY="3.5" orient="auto">
+                  <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
+                </marker>
+                <marker id="arrowhead-active" markerWidth="10" markerHeight="7" refX="26" refY="3.5" orient="auto">
+                  <polygon points="0 0, 10 3.5, 0 7" fill="#4285F4" />
+                </marker>
+              </defs>
+              <g id="graph-edges"></g>
+              <g id="graph-nodes"></g>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Live Node Metrics Table -->
+        <div class="lg:col-span-5 p-6 flex flex-col justify-between space-y-6">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">Indexed Web Pages &amp; Authority Scores</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              Notice how <strong>"Spammy Keyword Page"</strong> stuffs keywords to win Code Rank, while <strong>"Research Paper"</strong> &amp; <strong>"Algo Wiki"</strong> earn high PageRank via trusted citations.
+            </p>
+            <div id="node-metrics-list" class="space-y-2.5"></div>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+            <div class="font-bold flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-gogleYellow shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>
+              Experiment Idea:
+            </div>
+            <p class="leading-relaxed">
+              Try linking <strong>Home Hub</strong> and <strong>Algo Wiki</strong> directly to <strong>Spammy Keyword Page</strong>, then click <em>Run PageRank Iteration</em> to watch its authority surge!
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. CODE VS. PAGERANK EDUCATIONAL COMPARISON & MATRIX -->
+    <section id="comparison-matrix" class="space-y-8">
+      <div class="text-center max-w-3xl mx-auto space-y-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-gogleRed">Under The Hood</span>
+        <h2 class="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">Code Relevance vs. PageRank Algorithm</h2>
+        <p class="text-sm sm:text-base text-slate-600 dark:text-slate-400">
+          Early search engines relied solely on lexical matching (counting words in HTML/code). Modern search engines combine content relevance with graph-based link analysis.
+        </p>
+      </div>
+
+      <!-- Two Algorithm Deep-Dive Cards with Clean Code Snippets -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Card A: Code / Content Relevance (TF-IDF) -->
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm flex flex-col justify-between space-y-6">
+          <div class="space-y-3">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-gogleBlue text-xs font-bold">
+              On-Page Lexical Scoring
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">Code &amp; Content Analysis (TF-IDF / BM25)</h3>
+            <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              Evaluates <strong>what a page says</strong> by tokenizing HTML tags, titles, headings, and body text. Term Frequency–Inverse Document Frequency rewards rare query words that appear frequently on a page.
+            </p>
+          </div>
+
+          <div class="rounded-2xl bg-slate-950 text-slate-100 p-4 font-mono text-xs overflow-x-auto border border-slate-800">
+            <div class="flex items-center justify-between text-slate-400 pb-2 mb-2 border-b border-slate-800">
+              <span>tfidf_scorer.js</span>
+              <span class="text-gogleBlue">O(V + E_terms)</span>
+            </div>
+<pre class="leading-relaxed"><code><span class="text-purple-400">function</span> <span class="text-blue-400">computeCodeScore</span>(queryTerms, doc, corpus) {
+  <span class="text-purple-400">return</span> queryTerms.<span class="text-yellow-300">reduce</span>((score, term) => {
+    <span class="text-slate-400">// Term Frequency (with title boost)</span>
+    <span class="text-purple-400">const</span> tf = (doc.termFreq[term] || <span class="text-emerald-400">0</span>) / doc.wordCount;
+    <span class="text-purple-400">const</span> titleBoost = doc.title.<span class="text-yellow-300">includes</span>(term) ? <span class="text-emerald-400">2.0</span> : <span class="text-emerald-400">1.0</span>;
+    <span class="text-slate-400">// Inverse Document Frequency</span>
+    <span class="text-purple-400">const</span> docsWithTerm = corpus.<span class="text-yellow-300">filter</span>(d => d.termFreq[term] > <span class="text-emerald-400">0</span>).length;
+    <span class="text-purple-400">const</span> idf = Math.<span class="text-yellow-300">log</span>((corpus.length + <span class="text-emerald-400">1</span>) / (docsWithTerm + <span class="text-emerald-400">1</span>)) + <span class="text-emerald-400">1</span>;
+    <span class="text-purple-400">return</span> score + (tf * idf * titleBoost);
+  }, <span class="text-emerald-400">0</span>);
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Card B: PageRank Algorithm -->
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm flex flex-col justify-between space-y-6">
+          <div class="space-y-3">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-gogleGreen text-xs font-bold">
+              Off-Page Graph Authority
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">PageRank Algorithm (Power Iteration)</h3>
+            <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              Evaluates <strong>who trusts the page</strong> by modeling the web as a directed graph. A hyperlink from page <em>u</em> to page <em>v</em> acts as a weighted vote proportional to <em>u</em>'s own importance.
+            </p>
+          </div>
+
+          <div class="rounded-2xl bg-slate-950 text-slate-100 p-4 font-mono text-xs overflow-x-auto border border-slate-800">
+            <div class="flex items-center justify-between text-slate-400 pb-2 mb-2 border-b border-slate-800">
+              <span>pagerank.js</span>
+              <span class="text-gogleGreen">PR(v) = (1-d)/N + d · Σ PR(u)/L(u)</span>
+            </div>
+<pre class="leading-relaxed"><code><span class="text-purple-400">function</span> <span class="text-emerald-400">iteratePageRank</span>(nodes, edges, d = <span class="text-emerald-400">0.85</span>) {
+  <span class="text-purple-400">const</span> N = nodes.length;
+  <span class="text-purple-400">const</span> nextPR = {};
+  nodes.<span class="text-yellow-300">forEach</span>(v => {
+    <span class="text-purple-400">let</span> inboundSum = <span class="text-emerald-400">0</span>;
+    edges.<span class="text-yellow-300">filter</span>(e => e.target === v.id).<span class="text-yellow-300">forEach</span>(e => {
+      <span class="text-purple-400">const</span> u = nodes.<span class="text-yellow-300">find</span>(n => n.id === e.source);
+      <span class="text-purple-400">const</span> outDegree = edges.<span class="text-yellow-300">filter</span>(x => x.source === u.id).length;
+      inboundSum += u.pr / outDegree;
+    });
+    nextPR[v.id] = (<span class="text-emerald-400">1</span> - d) / N + d * inboundSum;
+  });
+  <span class="text-purple-400">return</span> nextPR;
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Structured Comparison Matrix Table -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <th class="py-4 px-6 font-bold">Dimension</th>
+                <th class="py-4 px-6 font-bold text-gogleBlue">Code / Content Relevance (TF-IDF)</th>
+                <th class="py-4 px-6 font-bold text-gogleGreen">PageRank (Graph Authority)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+              <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition">
+                <td class="py-4 px-6 font-semibold text-slate-900 dark:text-white">Core Principle</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300">Lexical similarity between user query tokens and document HTML/text.</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300">Random surfer probability distribution across the web's hyperlink graph.</td>
+              </tr>
+              <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition">
+                <td class="py-4 px-6 font-semibold text-slate-900 dark:text-white">Query Dependence</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 text-xs font-semibold">Query-Dependent</span> — Computed dynamically per search query.</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300"><span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-xs font-semibold">Query-Independent</span> — Pre-computed offline across the crawl graph.</td>
+              </tr>
+              <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition">
+                <td class="py-4 px-6 font-semibold text-slate-900 dark:text-white">Primary Strength</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300">Pinpoints exact terminology, code snippets, and topical specificity.</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300">Surfaces trustworthy, authoritative, and widely cited sources automatically.</td>
+              </tr>
+              <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition">
+                <td class="py-4 px-6 font-semibold text-slate-900 dark:text-white">Key Vulnerability</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300">Easily manipulated by <strong>keyword stuffing</strong> and hidden spam text.</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300">Vulnerable to <strong>link farms</strong>, paid backlinks, and cold-start for new pages.</td>
+              </tr>
+              <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition">
+                <td class="py-4 px-6 font-semibold text-slate-900 dark:text-white">Modern Search Role</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300">Candidate retrieval &amp; semantic matching (paired with neural embeddings).</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300">Core trust &amp; authority signal used to re-rank retrieved candidates.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="border-t border-slate-200 dark:border-slate-800 py-8 mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
+    <p>Mini Gogle Interactive Search Lab &bull; Built to visualize Lexical TF-IDF Relevance vs. PageRank Link Authority.</p>
+  </footer>
+
+  <script>
+    /**
+     * Mini Gogle — Interactive Search Engine & PageRank Visualizer
+     * All logic runs client-side with real-time TF-IDF scoring and iterative PageRank power iteration.
+     */
+
+    // 1. Sample Web Corpus (Designed to highlight differences between Keyword Stuffing vs. Authority)
+    const INITIAL_PAGES = [
+      {
+        id: 'hub',
+        title: 'Home Hub — CS & Web Portal',
+        url: 'https://hub.minigogle.edu/index',
+        snippet: 'Central directory curating trusted computer science resources, web graph research, and search engine architecture guides.',
+        content: 'computer science portal directory web graph search engine guide curated links resources',
+        x: 130,
+        y: 230,
+        color: '#4285F4',
+        pr: 0.166
+      },
+      {
+        id: 'wiki',
+        title: 'Algo Wiki — Graph & Search Encyclopedia',
+        url: 'https://wiki.minigogle.edu/algorithms',
+        snippet: 'Comprehensive reference on graph traversal, shortest path algorithm design, data structures, and web indexing systems.',
+        content: 'algorithm graph traversal shortest path data structures web indexing search engine encyclopedia',
+        x: 340,
+        y: 105,
+        color: '#34A853',
+        pr: 0.166
+      },
+      {
+        id: 'paper',
+        title: 'Stanford Paper — Anatomy of a Search Engine',
+        url: 'https://research.minigogle.edu/pagerank-1998',
+        snippet: 'Foundational academic paper introducing PageRank link analysis for large-scale hypertextual web search engine ranking.',
+        content: 'pagerank web graph link analysis search engine ranking hypertextual research paper',
+        x: 560,
+        y: 145,
+        color: '#FBBC05',
+        pr: 0.166
+      },
+      {
+        id: 'docs',
+        title: 'Dev Docs — Data Structures & Trees',
+        url: 'https://docs.minigogle.edu/data-structures',
+        snippet: 'Production documentation for hash maps, inverted indexes, balanced trees, and graph adjacency data structures.',
+        content: 'data structures hash maps inverted index balanced trees graph adjacency algorithm documentation',
+        x: 350,
+        y: 355,
+        color: '#4285F4',
+        pr: 0.166
+      },
+      {
+        id: 'blog',
+        title: 'Tech Blog — Scaling Web Crawlers',
+        url: 'https://blog.minigogle.edu/crawler-design',
+        snippet: 'Engineering deep dive into distributed web crawlers, frontier queues, and parsing HTML code for search indexing.',
+        content: 'web crawler distributed queues html code search engine indexing engineering blog',
+        x: 555,
+        y: 335,
+        color: '#34A853',
+        pr: 0.166
+      },
+      {
+        id: 'spam',
+        title: 'Spammy Keyword Page — Algorithm Algorithm Algorithm!',
+        url: 'http://seo-farm.example.net/best-algorithm',
+        snippet: 'algorithm algorithm web graph search engine data structures algorithm code algorithm free download algorithm.',
+        content: 'algorithm algorithm algorithm algorithm web graph web graph search engine search engine data structures data structures algorithm code',
+        x: 155,
+        y: 385,
+        color: '#EA4335',
+        pr: 0.166
+      }
+    ];
+
+    // Directed edges representing hyperlinks (source -> target)
+    const INITIAL_EDGES = [
+      { source: 'hub', target: 'wiki' },
+      { source: 'hub', target: 'docs' },
+      { source: 'hub', target: 'blog' },
+      { source: 'wiki', target: 'paper' },
+      { source: 'wiki', target: 'docs' },
+      { source: 'docs', target: 'wiki' },
+      { source: 'docs', target: 'paper' },
+      { source: 'blog', target: 'paper' },
+      { source: 'blog', target: 'wiki' },
+      { source: 'paper', target: 'hub' },
+      { source: 'spam', target: 'paper' },
+      { source: 'spam', target: 'wiki' }
+    ];
+
+    // Application State
+    let pages = JSON.parse(JSON.stringify(INITIAL_PAGES));
+    let edges = JSON.parse(JSON.stringify(INITIAL_EDGES));
+    let dampingFactor = 0.85;
+    let iterationCount = 0;
+    let selectedSourceNode = null;
+    let codeWeight = 0.5; // 0 to 1
+
+    // Utility: Non-blocking Toast Message
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        info: 'bg-slate-900 text-white border-slate-700 dark:bg-slate-800',
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        warn: 'bg-amber-500 text-slate-950 border-amber-400'
+      };
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-lg text-xs sm:text-sm font-medium transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-2', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // 2. PageRank Power Iteration Engine
+    function runPageRankStep() {
+      const N = pages.length;
+      const d = dampingFactor;
+      const newPR = {};
+
+      // Identify dangling nodes (nodes with 0 outgoing links)
+      let danglingSum = 0;
+      pages.forEach(p => {
+        const outCount = edges.filter(e => e.source === p.id).length;
+        if (outCount === 0) {
+          danglingSum += p.pr;
+        }
+      });
+
+      pages.forEach(targetNode => {
+        let inboundContribution = 0;
+        const incomingEdges = edges.filter(e => e.target === targetNode.id);
+
+        incomingEdges.forEach(edge => {
+          const sourceNode = pages.find(p => p.id === edge.source);
+          const outDegree = edges.filter(e => e.source === sourceNode.id).length;
+          if (outDegree > 0) {
+            inboundContribution += sourceNode.pr / outDegree;
+          }
+        });
+
+        // Standard PageRank formula with dangling node redistribution
+        newPR[targetNode.id] = ((1 - d) / N) + d * (inboundContribution + danglingSum / N);
+      });
+
+      pages.forEach(p => {
+        p.pr = newPR[p.id];
+      });
+      iterationCount++;
+    }
+
+    function convergePageRank(steps = 20) {
+      pages.forEach(p => { p.pr = 1 / pages.length; });
+      iterationCount = 0;
+      for (let i = 0; i < steps; i++) {
+        runPageRankStep();
+      }
+    }
+
+    // 3. Code / Lexical TF-IDF Relevance Scorer
+    function computeCodeRelevance(query, page) {
+      const cleanQuery = query.toLowerCase().trim();
+      if (!cleanQuery) return 0.5; // Neutral baseline when empty
+
+      const terms = cleanQuery.split(/\s+/).filter(Boolean);
+      const titleTokens = page.title.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+      const contentTokens = page.content.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+      const totalTokens = Math.max(contentTokens.length, 1);
+
+      let rawScore = 0;
+      terms.forEach(term => {
+        const contentMatches = contentTokens.filter(t => t.includes(term)).length;
+        const titleMatches = titleTokens.filter(t => t.includes(term)).length;
+
+        // Term Frequency + Title Boost
+        const tf = contentMatches / totalTokens;
+        const titleBonus = titleMatches * 0.35;
+
+        // Inverse Document Frequency across corpus
+        const docsMatching = pages.filter(p =>
+          (p.title + ' ' + p.content).toLowerCase().includes(term)
+        ).length;
+        const idf = Math.log((pages.length + 1) / (docsMatching + 1)) + 1;
+
+        rawScore += (tf * 3.2 + titleBonus) * idf;
+      });
+
+      return rawScore;
+    }
+
+    // 4. Render Search Results (Code vs Hybrid vs PageRank)
+    function renderSearchResults() {
+      const query = document.getElementById('search-input').value;
+
+      // Calculate raw scores
+      const scoredPages = pages.map(p => ({
+        ...p,
+        rawCodeScore: computeCodeRelevance(query, p)
+      }));
+
+      // Normalize scores to 0..100 for fair visual comparison & blending
+      const maxCode = Math.max(...scoredPages.map(p => p.rawCodeScore), 0.0001);
+      const maxPR = Math.max(...scoredPages.map(p => p.pr), 0.0001);
+
+      scoredPages.forEach(p => {
+        p.normCode = (p.rawCodeScore / maxCode) * 100;
+        p.normPR = (p.pr / maxPR) * 100;
+        p.hybridScore = (codeWeight * p.normCode) + ((1 - codeWeight) * p.normPR);
+      });
+
+      const byCode = [...scoredPages].sort((a, b) => b.normCode - a.normCode);
+      const byHybrid = [...scoredPages].sort((a, b) => b.hybridScore - a.hybridScore);
+      const byPR = [...scoredPages].sort((a, b) => b.normPR - a.normPR);
+
+      renderColumn('results-code', byCode, 'normCode', 'bg-gogleBlue', 'Code Score');
+      renderColumn('results-hybrid', byHybrid, 'hybridScore', 'bg-gogleYellow', 'Hybrid Score');
+      renderColumn('results-pagerank', byPR, 'normPR', 'bg-gogleGreen', 'PR Authority');
+    }
+
+    function renderColumn(containerId, sortedList, scoreKey, barColorClass, label) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+
+      sortedList.forEach((item, index) => {
+        const scoreVal = Math.round(item[scoreKey]);
+        const isSpam = item.id === 'spam';
+        const card = document.createElement('div');
+        card.className = `card-transition p-3.5 rounded-xl border ${
+          index === 0
+            ? 'bg-slate-50/90 dark:bg-slate-800/70 border-slate-300 dark:border-slate-700 shadow-sm'
+            : 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800'
+        }`;
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="shrink-0 w-5 h-5 rounded-md text-xs font-bold flex items-center justify-center ${
+                index === 0
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                  : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+              }">#${index + 1}</span>
+              <h4 class="text-sm font-bold text-gogleBlue dark:text-blue-400 truncate" title="${item.title}">${item.title}</h4>
+            </div>
+            ${isSpam ? '<span class="shrink-0 px-1.5 py-0.5 text-[10px] font-bold rounded bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">Spammy</span>' : ''}
+          </div>
+          <p class="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 truncate mt-0.5">${item.url}</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">${item.snippet}</p>
+          <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+            <div class="flex items-center justify-between text-[11px] font-semibold mb-1">
+              <span class="text-slate-500 dark:text-slate-400">${label}</span>
+              <span class="font-mono text-slate-800 dark:text-slate-200">${scoreVal}% <span class="text-slate-400 font-normal">(PR: ${(item.pr * 100).toFixed(1)}%)</span></span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div class="h-full ${barColorClass} rounded-full transition-all duration-500" style="width: ${Math.max(scoreVal, 4)}%"></div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // 5. Render Interactive SVG Web Graph & Metrics
+    function renderWebGraph() {
+      const edgesGroup = document.getElementById('graph-edges');
+      const nodesGroup = document.getElementById('graph-nodes');
+      const hint = document.getElementById('graph-selection-hint');
+
+      document.getElementById('iteration-count').textContent = iterationCount;
+
+      if (selectedSourceNode) {
+        const src = pages.find(p => p.id === selectedSourceNode);
+        hint.innerHTML = `Selected source: <strong class="text-gogleBlue">${src.title.split('—')[0]}</strong>. Now click a target node to toggle link (or click same node to cancel).`;
+      } else {
+        hint.textContent = 'Tip: Click any node to start creating or removing a directed link.';
+      }
+
+      // Render Edges
+      edgesGroup.innerHTML = '';
+      edges.forEach(edge => {
+        const src = pages.find(p => p.id === edge.source);
+        const tgt = pages.find(p => p.id === edge.target);
+        if (!src || !tgt) return;
+
+        // Check if bidirectional edge exists to slightly curve the line
+        const hasReverse = edges.some(e => e.source === edge.target && e.target === edge.source);
+        const isHighlighted = selectedSourceNode === edge.source;
+
+        if (hasReverse) {
+          const dx = tgt.x - src.x;
+          const dy = tgt.y - src.y;
+          const midX = (src.x + tgt.x) / 2 - dy * 0.12;
+          const midY = (src.y + tgt.y) / 2 + dx * 0.12;
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', `M ${src.x} ${src.y} Q ${midX} ${midY} ${tgt.x} ${tgt.y}`);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', isHighlighted ? '#4285F4' : '#94a3b8');
+          path.setAttribute('stroke-width', isHighlighted ? '2.5' : '1.75');
+          path.setAttribute('stroke-opacity', isHighlighted ? '0.95' : '0.6');
+          path.setAttribute('marker-end', isHighlighted ? 'url(#arrowhead-active)' : 'url(#arrowhead)');
+          path.classList.add('edge-line');
+          edgesGroup.appendChild(path);
+        } else {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', src.x);
+          line.setAttribute('y1', src.y);
+          line.setAttribute('x2', tgt.x);
+          line.setAttribute('y2', tgt.y);
+          line.setAttribute('stroke', isHighlighted ? '#4285F4' : '#94a3b8');
+          line.setAttribute('stroke-width', isHighlighted ? '2.5' : '1.75');
+          line.setAttribute('stroke-opacity', isHighlighted ? '0.95' : '0.6');
+          line.setAttribute('marker-end', isHighlighted ? 'url(#arrowhead-active)' : 'url(#arrowhead)');
+          line.classList.add('edge-line');
+          edgesGroup.appendChild(line);
+        }
+      });
+
+      // Render Nodes
+      nodesGroup.innerHTML = '';
+      pages.forEach(node => {
+        const radius = Math.max(20, Math.min(42, 16 + node.pr * 85));
+        const isSelected = selectedSourceNode === node.id;
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+        g.style.cursor = 'pointer';
+
+        // Outer pulse ring if selected
+        if (isSelected) {
+          const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          ring.setAttribute('r', radius + 7);
+          ring.setAttribute('fill', 'none');
+          ring.setAttribute('stroke', '#4285F4');
+          ring.setAttribute('stroke-width', '2.5');
+          ring.setAttribute('stroke-dasharray', '4 3');
+          g.appendChild(ring);
+        }
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('r', radius);
+        circle.setAttribute('fill', node.color);
+        circle.setAttribute('stroke', '#ffffff');
+        circle.setAttribute('stroke-width', '3');
+        circle.classList.add('node-circle');
+        g.appendChild(circle);
+
+        // PR Percentage inside circle
+        const prText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        prText.setAttribute('text-anchor', 'middle');
+        prText.setAttribute('dy', '4');
+        prText.setAttribute('fill', '#ffffff');
+        prText.setAttribute('font-size', '11');
+        prText.setAttribute('font-weight', '700');
+        prText.setAttribute('font-family', 'JetBrains Mono, monospace');
+        prText.textContent = `${(node.pr * 100).toFixed(0)}%`;
+        g.appendChild(prText);
+
+        // Node Label below circle
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('dy', radius + 16);
+        label.setAttribute('fill', document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#1e293b');
+        label.setAttribute('font-size', '12');
+        label.setAttribute('font-weight', '600');
+        label.textContent = node.title.split('—')[0].trim();
+        g.appendChild(label);
+
+        g.addEventListener('click', () => handleNodeClick(node.id));
+        nodesGroup.appendChild(g);
+      });
+
+      renderNodeMetricsList();
+    }
+
+    function handleNodeClick(nodeId) {
+      if (!selectedSourceNode) {
+        selectedSourceNode = nodeId;
+        renderWebGraph();
+        return;
+      }
+
+      if (selectedSourceNode === nodeId) {
+        selectedSourceNode = null;
+        renderWebGraph();
+        return;
+      }
+
+      // Toggle edge between selectedSourceNode and nodeId
+      const existingIdx = edges.findIndex(e => e.source === selectedSourceNode && e.target === nodeId);
+      const srcName = pages.find(p => p.id === selectedSourceNode).title.split('—')[0].trim();
+      const tgtName = pages.find(p => p.id === nodeId).title.split('—')[0].trim();
+
+      if (existingIdx > -1) {
+        edges.splice(existingIdx, 1);
+        showToast(`Removed link: ${srcName} → ${tgtName}`, 'warn');
+      } else {
+        edges.push({ source: selectedSourceNode, target: nodeId });
+        showToast(`Added link: ${srcName} → ${tgtName}`, 'success');
+      }
+
+      selectedSourceNode = null;
+      convergePageRank(20);
+      renderWebGraph();
+      renderSearchResults();
+    }
+
+    function renderNodeMetricsList() {
+      const list = document.getElementById('node-metrics-list');
+      const sorted = [...pages].sort((a, b) => b.pr - a.pr);
+      list.innerHTML = '';
+
+      sorted.forEach(node => {
+        const inLinks = edges.filter(e => e.target === node.id).length;
+        const outLinks = edges.filter(e => e.source === node.id).length;
+        const pct = (node.pr * 100).toFixed(1);
+
+        const row = document.createElement('div');
+        row.className = 'p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3';
+        row.innerHTML = `
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${node.color}"></span>
+            <div class="min-w-0">
+              <div class="text-xs font-bold text-slate-900 dark:text-white truncate">${node.title.split('—')[0].trim()}</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400">In: <strong>${inLinks}</strong> &bull; Out: <strong>${outLinks}</strong></div>
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="text-xs font-mono font-bold text-slate-900 dark:text-white">${pct}%</div>
+            <div class="w-20 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mt-1">
+              <div class="h-full rounded-full transition-all duration-300" style="width: ${Math.min(100, node.pr * 240)}%; background-color: ${node.color}"></div>
+            </div>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    // 6. Event Listeners & Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      // Initial convergence
+      convergePageRank(20);
+      renderWebGraph();
+      renderSearchResults();
+
+      // Search Input live updates
+      const searchInput = document.getElementById('search-input');
+      searchInput.addEventListener('input', renderSearchResults);
+
+      document.getElementById('clear-search').addEventListener('click', () => {
+        searchInput.value = '';
+        searchInput.focus();
+        renderSearchResults();
+      });
+
+      document.getElementById('btn-search').addEventListener('click', () => {
+        renderSearchResults();
+        showToast(`Ranked ${pages.length} indexed pages for "${searchInput.value || 'all pages'}"`, 'info');
+      });
+
+      // Sample Query Buttons
+      document.querySelectorAll('.sample-query').forEach(btn => {
+        btn.addEventListener('click', () => {
+          searchInput.value = btn.dataset.query;
+          renderSearchResults();
+        });
+      });
+
+      // Feeling Lucky / Simulate Crawl Button
+      document.getElementById('btn-lucky').addEventListener('click', () => {
+        const queries = ['algorithm', 'web graph', 'search engine', 'data structures', 'pagerank', 'html code'];
+        const randomQuery = queries[Math.floor(Math.random() * queries.length)];
+        searchInput.value = randomQuery;
+        convergePageRank(20);
+        renderWebGraph();
+        renderSearchResults();
+        showToast(`Simulated fresh crawl & queried "${randomQuery}"!`, 'success');
+      });
+
+      // Hybrid Slider
+      const slider = document.getElementById('hybrid-slider');
+      slider.addEventListener('input', (e) => {
+        const codePct = parseInt(e.target.value, 10);
+        const prPct = 100 - codePct;
+        codeWeight = codePct / 100;
+
+        document.getElementById('weight-code-label').textContent = `${codePct}%`;
+        document.getElementById('weight-pr-label').textContent = `${prPct}%`;
+        document.getElementById('subtitle-blend').textContent = `${codePct}% Code + ${prPct}% PR`;
+        renderSearchResults();
+      });
+
+      // Damping Factor Input
+      document.getElementById('damping-input').addEventListener('change', (e) => {
+        let val = parseFloat(e.target.value);
+        if (isNaN(val) || val < 0.1) val = 0.1;
+        if (val > 0.99) val = 0.99;
+        e.target.value = val;
+        dampingFactor = val;
+        convergePageRank(20);
+        renderWebGraph();
+        renderSearchResults();
+        showToast(`Updated damping factor d = ${dampingFactor}`, 'info');
+      });
+
+      // Single PageRank Step Button
+      document.getElementById('btn-step-pr').addEventListener('click', () => {
+        runPageRankStep();
+        renderWebGraph();
+        renderSearchResults();
+        showToast(`Executed PageRank Iteration #${iterationCount}`, 'success');
+      });
+
+      // Reset Graph Button
+      document.getElementById('btn-reset-graph').addEventListener('click', () => {
+        pages = JSON.parse(JSON.stringify(INITIAL_PAGES));
+        edges = JSON.parse(JSON.stringify(INITIAL_EDGES));
+        selectedSourceNode = null;
+        dampingFactor = 0.85;
+        document.getElementById('damping-input').value = '0.85';
+        convergePageRank(20);
+        renderWebGraph();
+        renderSearchResults();
+        showToast('Reset web graph to default topology', 'info');
+      });
+
+      // Dark / Light Mode Toggle
+      document.getElementById('theme-toggle').addEventListener('click', () => {
+        document.documentElement.classList.toggle('dark');
+        renderWebGraph(); // Re-render SVG text contrast
+      });
+    });
+  </script>
+</body>
+</html>
